@@ -223,36 +223,15 @@ def clean_caption_text(vtt_content):
     
     return ' '.join(text_lines)
 
-def generate_ai_topic(caption_text, max_retries=3):
-    """Generate AI topic from captions using GitHub Models with retry logic"""
+def _try_ai_provider(provider_name, client, model, prompt, max_retries):
+    """Attempt to generate a topic from a single provider, with rate-limit retries.
+    Returns the topic string on success, or None if this provider failed outright."""
     import time
-    
-    github_token = os.getenv("GITHUB_TOKEN")
-    if not github_token:
-        print("  ⚠️ No GITHUB_TOKEN in environment")
-        return None
-    
-    client = OpenAI(
-        base_url="https://models.github.ai/inference",
-        api_key=github_token
-    )
-    
-    # Limit text length
-    max_chars = 15000
-    if len(caption_text) > max_chars:
-        caption_text = caption_text[:max_chars] + "..."
-    
-    prompt = PROMPT + f"""
-
-    Transcript:
-    {caption_text}
-
-    """
 
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
-                model="openai/gpt-4.1-mini",
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=50,
                 temperature=0.3
@@ -263,14 +242,56 @@ def generate_ai_topic(caption_text, max_retries=3):
             if "Too many requests" in error_msg or "429" in error_msg:
                 wait_time = (attempt + 1) * 10  # 10s, 20s, 30s
                 if attempt < max_retries - 1:
-                    print(f"  ⏳ Rate limited, waiting {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                    print(f"  ⏳ [{provider_name}] Rate limited, waiting {wait_time}s... (attempt {attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
-                    print(f"  ⚠️ AI error after {max_retries} retries: Rate limit exceeded")
+                    print(f"  ⚠️ [{provider_name}] AI error after {max_retries} retries: Rate limit exceeded")
                     return None
             else:
-                print(f"  ⚠️ AI error: {e}")
+                print(f"  ⚠️ [{provider_name}] AI error: {e}")
                 return None
+    return None
+
+
+def generate_ai_topic(caption_text, max_retries=3):
+    """Generate AI topic from captions. Tries OpenAI first, falling back to
+    GitHub Models if OpenAI isn't configured or fails."""
+    openai_api_key = os.getenv("OPENAI_APIKEY")
+    github_token = os.getenv("GITHUB_TOKEN")
+
+    providers = []
+    if openai_api_key:
+        providers.append(("OpenAI", OpenAI(api_key=openai_api_key), "gpt-4.1-mini"))
+    if github_token:
+        providers.append((
+            "GitHub Models",
+            OpenAI(base_url="https://models.github.ai/inference", api_key=github_token),
+            "openai/gpt-4.1-mini",
+        ))
+
+    if not providers:
+        print("  ⚠️ No OPENAI_APIKEY or GITHUB_TOKEN in environment")
+        return None
+
+    # Limit text length
+    max_chars = 15000
+    if len(caption_text) > max_chars:
+        caption_text = caption_text[:max_chars] + "..."
+
+    prompt = PROMPT + f"""
+
+    Transcript:
+    {caption_text}
+
+    """
+
+    for i, (provider_name, client, model) in enumerate(providers):
+        topic = _try_ai_provider(provider_name, client, model, prompt, max_retries)
+        if topic:
+            return topic
+        is_last = i == len(providers) - 1
+        print("  ⚠️ All AI providers failed" if is_last else f"  ↪️ Falling back from {provider_name}...")
+
     return None
 
 def extract_date_from_starttime(start_time):
