@@ -1,0 +1,452 @@
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var thumbCourses = [
+    'course-4608','course-4609','course-4611','course-4612','course-4613',
+    'course-4615','course-4616','course-4617','course-4618','course-4619',
+    'course-4620','course-4621','course-4622','course-4623','course-4624',
+    'course-4625','course-4626','course-4627','course-4628','course-4629',
+    'course-4630','course-4631','course-4632','course-4633','course-4634',
+    'course-4635','course-4636','course-4637','course-4639','course-4640',
+    'course-4641','course-4642','course-4643','course-4644','course-4645',
+    'course-4646','course-4647','course-4648','course-4649','course-4650',
+    'course-4651','course-4653','course-4654','course-4655','course-4656',
+    'course-4657','course-4658','course-4659','course-4661','course-4662',
+    'course-4663','course-4664','course-4665','course-4666','course-4667',
+    'course-4668','course-4669','course-4670','course-4671','course-4672',
+    'course-4673','course-4674','course-4675','course-4676','course-4677',
+    'course-4678','course-4679','course-4680','course-4681','course-4682',
+    'course-4683','course-4684','course-4685','course-4686','course-4687',
+    'course-4688','course-4689','course-4690','course-4691','course-4692',
+    'course-4693','course-4694','course-4695','course-4697','course-4698',
+    'course-4699','course-4700','course-4701','course-4702','course-4703',
+    'course-4704','course-4705','course-4706','course-4707','course-4708',
+    'course-4709','course-4710','course-4711','course-4712','course-4713',
+    'course-4714','course-4715','course-4716','course-4717','course-4718',
+    'course-4719','course-4720','course-4721','course-4722','course-4723',
+    'course-4724','course-4725','course-4726','course-4727','course-4728',
+    'course-4729','course-4730','course-4731','course-4732','course-4733',
+    'course-4734','course-4735','course-4736','course-4737','course-4738',
+    'course-4739','course-4740','course-4741','course-4742','course-4743',
+    'course-4744','course-4745','course-4746','course-4747','course-4749',
+    'course-4750','course-4751','course-4752','course-4753','course-4754',
+    'course-4755','course-4757','course-4758','course-4965','course-4966',
+    'course-4967','course-4968','course-4969','course-4970','course-4971',
+    'course-4972','course-4973','course-4974','course-4975','course-4976',
+    'course-4977','course-4978','course-4979','course-4980','course-4982',
+    'course-4983','course-4984','course-4985','course-4986','course-4987',
+    'course-4988','course-4989','course-4990','course-4991','course-4992',
+    'course-4993','course-4996','course-4997','course-5174','course-5221',
+    'course-5222','course-5223','course-5224','course-5225','course-5226',
+    'course-5227','course-5228','course-5229','course-5230','course-5231',
+    'course-5232','course-5233','course-5234','course-5235','course-5236',
+    'course-5237','course-5238','course-5239','course-5240','course-5241',
+    'course-5242','course-5243','course-5244','course-5245','course-5246',
+    'course-5247','course-5248','course-5249','course-5250','course-5251',
+    'course-5252','course-5253','course-5254','course-5255','course-5256',
+    'course-5257','course-5258','course-5259','course-5260','course-5261',
+    'course-5262','course-5263','course-5264','course-5265','course-5266',
+    'course-5267','course-5268','course-5269','course-5270','course-5271',
+    'course-5272','course-5273','course-5274','course-5275','course-5276',
+    'course-5277','course-5278','course-5279','course-5280','course-5281',
+    'course-5282','course-5283','course-5284','course-5285','course-5286',
+    'course-5287','course-5288','course-5289','course-5290','course-5291',
+    'course-5292','course-5293','course-5294','course-5295','course-5296',
+    'course-5297','course-5298','course-5299','course-5300','course-5301',
+    'course-5302','course-5303','course-5304','course-5305','course-5306',
+    'course-5307','course-5308','course-5309','course-5310','course-5311',
+    'course-5312','course-5313','course-5314','course-5315','course-5316',
+    'course-5317','course-5318','course-5319','course-5320','course-5321',
+    'course-5322','course-5323','course-5324','course-5325','course-5326',
+    'course-5327','course-5328','course-5329','course-5330','course-5331',
+    'course-5332','course-5333','course-5334','course-5335','course-5336',
+    'course-5337','course-5338','course-5339','course-5340','course-5341',
+    'course-5342','course-5343','course-5344','course-5345','course-5346',
+    'course-5347','course-5348','course-5349','course-5350','course-5351',
+    'course-5352','course-5353','course-5354','course-5355','course-5356',
+    'course-5357','course-5358','course-5359','course-5360','course-5361',
+    'course-5362','course-5363','course-5364','course-5365','course-5366',
+    'course-5367','course-5368','course-5369','course-5370','course-5373',
+    'course-5374'
+  ];
+
+  var isThumbLayout = thumbCourses.some(function(c){ return document.body.classList.contains(c); });
+
+  if (!isThumbLayout) return;
+
+  // Transform live sessions into thumbnail cards (for thumb layout only)
+  function transformLiveSessions() {
+    if (!isThumbLayout) return;
+    
+    // Find live session items - they have span.nowrap with "Watch live" link
+    var listItems = document.querySelectorAll('.block_panopto .listItem, .block_panopto .listItemAlt');
+    
+    for (var i = 0; i < listItems.length; i++) {
+      var item = listItems[i];
+      
+      // Skip if already transformed
+      if (item.getAttribute('data-live-transformed') === '1') continue;
+      
+      // Check if this is a live session - has nowrap span with "Watch live" link
+      var nowrapSpan = item.querySelector('span.nowrap');
+      if (!nowrapSpan) continue;
+      
+      // Find the "Watch live" link (direct Viewer.aspx link, not javascript:)
+      var watchLiveLink = null;
+      var links = nowrapSpan.querySelectorAll('a');
+      for (var l = 0; l < links.length; l++) {
+        var linkHref = links[l].getAttribute('href') || '';
+        if (linkHref.indexOf('Viewer.aspx') !== -1 && linkHref.indexOf('javascript:') === -1) {
+          watchLiveLink = links[l];
+          break;
+        }
+      }
+      
+      if (!watchLiveLink) continue;
+      
+      // Get the session name (text before the nowrap span)
+      var sessionName = '';
+      for (var j = 0; j < item.childNodes.length; j++) {
+        if (item.childNodes[j].nodeType === Node.TEXT_NODE) {
+          sessionName += item.childNodes[j].textContent;
+        }
+      }
+      sessionName = sessionName.trim();
+      if (!sessionName) sessionName = 'Live Session';
+      
+      // Get the actual href
+      var href = watchLiveLink.getAttribute('href').replace(/&amp;/g, '&');
+      
+      // Extract session ID for thumbnail
+      var idMatch = href.match(/[?&]id=([^&]+)/i);
+      if (!idMatch) continue;
+      var sessionId = decodeURIComponent(idMatch[1]);
+      
+      // Extract origin from the href
+      var origin = 'https://ioe.cloud.panopto.eu';
+      try {
+        var urlObj = new URL(href, window.location.href);
+        origin = urlObj.origin;
+      } catch (e) {
+        var match = href.match(/^(https?:\/\/[^\/]+)/i);
+        if (match) origin = match[1];
+      }
+      
+      // Mark as transformed
+      item.setAttribute('data-live-transformed', '1');
+      item.classList.add('panopto-live-session');
+      
+      // Clear the item content
+      item.innerHTML = '';
+      
+      // Create a new anchor element styled like the recordings
+      var newLink = document.createElement('a');
+      newLink.href = href;
+      newLink.setAttribute('onclick', 'return panopto_startSSO(this)');
+      newLink.classList.add('has-panopto-meta');
+      newLink.setAttribute('data-meta-set', '1');
+      
+      // Set thumbnail
+      var thumb = origin + '/Panopto/Services/FrameGrabber.svc/FrameRedirect?objectId='
+        + encodeURIComponent(sessionId) + '&mode=Delivery';
+      newLink.style.setProperty('--panopto-thumb', 'url("' + thumb + '")');
+      newLink.setAttribute('data-thumb-set', '1');
+      
+      // Add title
+      var titleSpan = document.createElement('span');
+      titleSpan.className = 'panopto-thumb-title';
+      titleSpan.textContent = sessionName;
+      newLink.appendChild(titleSpan);
+      
+      // Add play button overlay (since ::after is used for the red pulse dot)
+      var playBtn = document.createElement('span');
+      playBtn.className = 'panopto-play-btn';
+      playBtn.textContent = '\u25B6';
+      newLink.appendChild(playBtn);
+      
+      // Add LIVE badge instead of date
+      var metaSpan = document.createElement('span');
+      metaSpan.className = 'panopto-meta-date';
+      var liveBadge = document.createElement('span');
+      liveBadge.className = 'panopto-live-badge';
+      liveBadge.textContent = '🔴 LIVE NOW';
+      metaSpan.appendChild(liveBadge);
+      newLink.appendChild(metaSpan);
+      
+      item.appendChild(newLink);
+    }
+    
+    // Hide the "Live sessions" and "Completed recordings" headers for thumb layout
+    var headers = document.querySelectorAll('.block_panopto #block_panopto_content > div > b');
+    for (var k = 0; k < headers.length; k++) {
+      var headerText = headers[k].textContent.trim().toLowerCase();
+      if (headerText === 'live sessions' || headerText === 'completed recordings') {
+        headers[k].parentNode.style.display = 'none';
+      }
+    }
+    var sectionHeaders = document.querySelectorAll('.block_panopto .sectionHeader');
+    for (var m = 0; m < sectionHeaders.length; m++) {
+      var text = sectionHeaders[m].textContent.trim().toLowerCase();
+      if (text === 'completed recordings') {
+        sectionHeaders[m].style.display = 'none';
+      }
+    }
+  }
+
+  // Move 4th item out of hidden div to show 4 in collapsed view
+  var movedItem = null;
+  var hiddenDivRef = null;
+  
+  function show4InCollapsed() {
+    var hiddenDiv = document.getElementById('hiddenLecturesDiv');
+    var showAllDiv = document.getElementById('showAllDiv');
+    if (!hiddenDiv || !showAllDiv) return;
+    
+    hiddenDivRef = hiddenDiv;
+    
+    // Check if already expanded (hidden div is visible)
+    var isExpanded = hiddenDiv.style.display === 'block';
+    
+    if (isExpanded) {
+      // If expanded and we have a moved item, put it back
+      if (movedItem && movedItem.parentNode !== hiddenDiv) {
+        hiddenDiv.insertBefore(movedItem, hiddenDiv.firstChild);
+      }
+    } else {
+      // If collapsed, move the first hidden item out
+      if (!movedItem || movedItem.parentNode === hiddenDiv) {
+        var firstHidden = hiddenDiv.querySelector('.listItem, .listItemAlt');
+        if (firstHidden) {
+          movedItem = firstHidden;
+          showAllDiv.parentNode.insertBefore(firstHidden, showAllDiv);
+        }
+      }
+    }
+  }
+
+  // Parse session name formats:
+  // New: [Week X · Day Y] AI Topic | DD/MM/YYYY HH:MM AM/PM
+  // New: [Week X] AI Topic | DD/MM/YYYY HH:MM AM/PM
+  // New: [Day X] AI Topic | DD/MM/YYYY HH:MM AM/PM
+  // Old: [DD/MM/YYYY HH:MM AM/PM] Original Name | AI Topic
+  function parseSessionName(text) {
+    if (!text) return null;
+    
+    // Week + Day format: [Week X · Day Y] AI Topic | date
+    var weekDayMatch = text.match(/^\[Week\s*(\d+)\s*[·•]\s*Day\s*(\d+)\]\s*(.+?)\s*\|\s*(.+)$/i);
+    if (weekDayMatch) {
+      return {
+        week: parseInt(weekDayMatch[1]),
+        day: parseInt(weekDayMatch[2]),
+        topic: weekDayMatch[3].trim(),
+        date: weekDayMatch[4].trim(),
+        original: null
+      };
+    }
+    
+    // New format: [Week X] AI Topic | date
+    var weekMatch = text.match(/^\[Week\s*(\d+)\]\s*(.+?)\s*\|\s*(.+)$/i);
+    if (weekMatch) {
+      return {
+        week: parseInt(weekMatch[1]),
+        day: null,
+        topic: weekMatch[2].trim(),
+        date: weekMatch[3].trim(),
+        original: null
+      };
+    }
+    
+    // Day format: [Day X] AI Topic | date
+    var dayMatch = text.match(/^\[Day\s*(\d+)\]\s*(.+?)\s*\|\s*(.+)$/i);
+    if (dayMatch) {
+      return {
+        week: null,
+        day: parseInt(dayMatch[1]),
+        topic: dayMatch[2].trim(),
+        date: dayMatch[3].trim(),
+        original: null
+      };
+    }
+    
+    // No-week format: [date time] AI Topic | Original Name
+    var dateMatch = text.match(/^\[(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}\s*[AP]M)?)\]\s*(.+?)\s*\|\s*(.+)$/i);
+    if (dateMatch) {
+      return {
+        week: null,
+        day: null,
+        date: dateMatch[1],
+        original: dateMatch[3].trim(),
+        topic: dateMatch[2].trim()
+      };
+    }
+    
+    // Fallback: anything | anything
+    var pipeMatch = text.match(/^(.+?)\s*\|\s*(.+)$/);
+    if (pipeMatch) {
+      return {
+        week: null,
+        day: null,
+        date: null,
+        original: pipeMatch[1].trim(),
+        topic: pipeMatch[2].trim()
+      };
+    }
+    
+    return null;
+  }
+
+  function extractSessionId(href) {
+    if (!href) return null;
+    href = href.replace(/&amp;/g, '&');
+    var m = href.match(/[?&]id=([^&]+)/i);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+
+  function applyPanoptoEnhancements() {
+    var links = document.querySelectorAll(
+      '.block_panopto .listItem > a[href*="Viewer.aspx"][href*="id="],' +
+      '.block_panopto .listItemAlt > a[href*="Viewer.aspx"][href*="id="]'
+    );
+
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      var href = a.getAttribute('href');
+      var id = extractSessionId(href);
+      if (!id) continue;
+
+      // Apply thumbnail if not already set
+      if (a.getAttribute('data-thumb-set') !== '1') {
+        var origin;
+        try {
+          origin = (new URL(href.replace(/&amp;/g, '&'), window.location.href)).origin;
+        } catch (e) {
+          origin = href.split('/Panopto/')[0];
+        }
+
+        var thumb = origin + '/Panopto/Services/FrameGrabber.svc/FrameRedirect?objectId='
+          + encodeURIComponent(id) + '&mode=Delivery';
+
+        a.style.setProperty('--panopto-thumb', 'url("' + thumb + '")');
+        a.setAttribute('data-thumb-set', '1');
+        a.setAttribute('data-thumb-url', thumb);
+      }
+
+      // Parse and apply metadata from session name if not already set
+      if (a.getAttribute('data-meta-set') !== '1') {
+        // Get the text content (excluding any child elements we might add)
+        var textNodes = [];
+        for (var j = 0; j < a.childNodes.length; j++) {
+          if (a.childNodes[j].nodeType === Node.TEXT_NODE) {
+            textNodes.push(a.childNodes[j].textContent);
+          }
+        }
+        var sessionText = textNodes.join('').trim();
+        var meta = parseSessionName(sessionText);
+        
+        if (meta) {
+          a.setAttribute('data-meta-set', '1');
+          a.classList.add('has-panopto-meta');
+          
+          // Remove existing text nodes
+          for (var k = a.childNodes.length - 1; k >= 0; k--) {
+            if (a.childNodes[k].nodeType === Node.TEXT_NODE) {
+              a.removeChild(a.childNodes[k]);
+            }
+          }
+          
+          var mainTitle = meta.topic || meta.original || 'Recording';
+          
+          // THUMBNAIL LAYOUT: Title in separate span below thumbnail
+          var titleSpan = document.createElement('span');
+          titleSpan.className = 'panopto-thumb-title';
+          titleSpan.textContent = mainTitle;
+          a.appendChild(titleSpan);
+          
+          // Create subtitle with week badge and/or date
+          var dateSpan = document.createElement('span');
+          dateSpan.className = 'panopto-meta-date';
+          
+          if (meta.week) {
+            var weekBadge = document.createElement('span');
+            weekBadge.className = 'panopto-week-badge';
+            weekBadge.textContent = 'Week ' + meta.week;
+            dateSpan.appendChild(weekBadge);
+          }
+          if (meta.day) {
+            var dayBadge = document.createElement('span');
+            dayBadge.className = 'panopto-day-badge';
+            dayBadge.textContent = 'Day ' + meta.day;
+            dateSpan.appendChild(dayBadge);
+          }
+          if (meta.date) {
+            // Show only the date part (strip time)
+            var dateOnly = meta.date.split(' ')[0];
+            var dateText = document.createTextNode('📅 ' + dateOnly);
+            dateSpan.appendChild(dateText);
+          }
+          if (meta.week || meta.day || meta.date) {
+            a.appendChild(dateSpan);
+          }
+          
+          // Create tooltip span for original name (shown on hover via CSS)
+          if (meta.original) {
+            var tooltipSpan = document.createElement('span');
+            tooltipSpan.className = 'panopto-meta-tooltip';
+            tooltipSpan.textContent = '📁 ' + meta.original;
+            a.appendChild(tooltipSpan);
+          }
+        } else {
+          // Unrenamed session - wrap text in styled span for consistent appearance
+          a.setAttribute('data-meta-set', '1');
+          a.classList.add('has-panopto-meta');
+          
+          var plainText = sessionText || 'Recording';
+          
+          for (var k = a.childNodes.length - 1; k >= 0; k--) {
+            if (a.childNodes[k].nodeType === Node.TEXT_NODE) {
+              a.removeChild(a.childNodes[k]);
+            }
+          }
+          
+          var titleSpan = document.createElement('span');
+          titleSpan.className = 'panopto-thumb-title';
+          titleSpan.textContent = plainText;
+          a.appendChild(titleSpan);
+        }
+      }
+    }
+  }
+
+  // Run now
+  transformLiveSessions();
+  show4InCollapsed();
+  applyPanoptoEnhancements();
+
+  // Re-run after clicking Show all/less
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (t && t.id === 'showAllToggle') {
+      setTimeout(function() {
+        transformLiveSessions();
+        show4InCollapsed();
+        applyPanoptoEnhancements();
+      }, 50);
+      setTimeout(function() {
+        transformLiveSessions();
+        show4InCollapsed();
+        applyPanoptoEnhancements();
+      }, 250);
+    }
+  });
+
+  // Watch for DOM changes (important for AJAX-loaded content)
+  var block = document.querySelector('.block_panopto');
+  if (block && window.MutationObserver) {
+    var obs = new MutationObserver(function () {
+      transformLiveSessions();
+      show4InCollapsed();
+      applyPanoptoEnhancements();
+    });
+    obs.observe(block, { childList: true, subtree: true, attributes: true });
+  }
+});
+</script>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panopto Synchronization Report</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f7fa;">
+    <div style="max-width: 800px; margin: 0 auto; background-color: white; box-shadow: 0 0 20px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 300;">&#x1F4F9; Panopto Synchronization Report</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 16px;">Institute of Education &middot; {{report_datetime}}</p>
+        </div>
+        
+        <!-- Executive Summary -->
+        <div style="padding: 30px;">
+            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; text-align: center;">
+                <h2 style="margin: 0 0 15px 0; font-size: 24px; font-weight: 400;">&#x1F4CA; Executive Summary</h2>
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+                    <div style="text-align: center; min-width: 120px;">
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">{{total_groups}}</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Groups Processed</div>
+                    </div>
+                    <div style="text-align: center; min-width: 120px;">
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px; color: #90EE90;">{{groups_synchronized}}</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Synchronized</div>
+                    </div>
+                    <div style="text-align: center; min-width: 120px;">
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px; color: #90EE90;">{{total_sessions_copied}}</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Sessions Copied</div>
+                    </div>
+                    <div style="text-align: center; min-width: 120px;">
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px; color: #87CEEB;">{{total_sessions_renamed}}</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Sessions Renamed</div>
+                    </div>
+                    <div style="text-align: center; min-width: 120px;">
+                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px; color: {{attention_color}};">{{groups_with_differences}}</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Need Attention</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Badge -->
+            {{status_section}}
+
+            <!-- Differences Summary -->
+            {{differences_section}}
+
+            <!-- Synchronization Details -->
+            {{sync_details_section}}
+
+            <!-- System Info -->
+            <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-top: 30px;">
+                <h3 style="color: #667eea; font-size: 18px; margin-bottom: 15px;">&#x1F5A5;&#xFE0F; System Information</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 14px;">
+                    <div><strong>Panopto Server:</strong><br>{{panopto_server}}</div>
+                    <div><strong>Script Version:</strong><br>Windows-Safe Automated Sync</div>
+                    <div><strong>Execution Time:</strong><br>{{execution_time}}</div>
+                    <div><strong>Results File:</strong><br>{{results_file_status}}</div>
+                    <div><strong>Log File:</strong><br>{{log_file_status}}</div>
+                </div>
+            </div>
+        
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #2c3e50; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px;">
+            <p style="margin: 0; font-size: 14px; opacity: 0.8;">
+                &#x1F916; This is an automated report from the Panopto Synchronization System<br>
+                <span style="font-size: 12px;">Powered by Python &bull; Institute of Education</span>
+            </p>
+        </div>
+        
+    </div>
+</body>
+</html>
