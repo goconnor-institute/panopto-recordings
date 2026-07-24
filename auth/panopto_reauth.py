@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-PANOPTO_SERVER = os.getenv("PANOPTO_SERVER", "ioe.cloud.panopto.eu")
+PANOPTO_SERVER = os.getenv("PANOPTO_SERVER", "")
 PANOPTO_CLIENT_ID = os.getenv("PANOPTO_CLIENT_ID", "")
 PANOPTO_CLIENT_SECRET = os.getenv("PANOPTO_CLIENT_SECRET", "")
 REDIRECT_URI = "http://localhost:8080/callback"

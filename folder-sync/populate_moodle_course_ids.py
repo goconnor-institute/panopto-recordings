@@ -25,7 +25,7 @@ load_dotenv(override=True)
 
 # Configuration
 CLASS_GROUPS_FILE = os.getenv("CLASS_GROUPS_FILE", "pt_class_groups.xlsx")
-MOODLE_URL = os.getenv("MOODLE_URL", "https://moodle.instituteofeducation.ie")
+MOODLE_URL = os.getenv("MOODLE_URL", "")
 MOODLE_TOKEN = os.getenv("MOODLE_API_KEY", "")
 
 # Column name to write into
