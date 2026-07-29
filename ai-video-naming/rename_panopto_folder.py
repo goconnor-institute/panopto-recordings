@@ -42,6 +42,7 @@ PANOPTO_CLIENT_SECRET = os.getenv("PANOPTO_CLIENT_SECRET", "")
 TOKEN_FILE = os.getenv("TOKEN_FILE", "panopto_tokens.json")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "rename_output")
 SCHEDULE_FILE = os.getenv("SCHEDULE_FILE", "Eve-Sat 25-26  Weekly Schedule.xlsx")
+DEBUG_OUTPUT = os.getenv("LOGGING_LEVEL", "INFO").upper() == "DEBUG"
 
 def load_week_schedule():
     """Load week schedule from Excel file"""
@@ -501,21 +502,21 @@ def main():
             print("❌ Cancelled")
             return
     
-    # Create output directory if needed
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
-    # Create backup
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup = {
-        "folder_id": folder_id,
-        "timestamp": timestamp,
-        "sessions": [{"id": s["Id"], "name": s["Name"]} for s in sessions]
-    }
-    backup_file = os.path.join(OUTPUT_DIR, f"session_backup_{folder_id[:8]}_{timestamp}.json")
-    with open(backup_file, 'w', encoding='utf-8') as f:
-        json.dump(backup, f, indent=2, ensure_ascii=False)
-    print(f"\n💾 Backup saved: {backup_file}")
-    
+
+    # Create backup (DEBUG only - not needed for normal runs)
+    if DEBUG_OUTPUT:
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        backup = {
+            "folder_id": folder_id,
+            "timestamp": timestamp,
+            "sessions": [{"id": s["Id"], "name": s["Name"]} for s in sessions]
+        }
+        backup_file = os.path.join(OUTPUT_DIR, f"session_backup_{folder_id[:8]}_{timestamp}.json")
+        with open(backup_file, 'w', encoding='utf-8') as f:
+            json.dump(backup, f, indent=2, ensure_ascii=False)
+        print(f"\n💾 Backup saved: {backup_file}")
+
     # Pre-compute day numbers if using same-day-same-topic
     day_numbers = {}  # date_key -> day number
     cycle_numbers = {}  # date_key -> cycle (week) number (only with --max-days)
@@ -731,26 +732,28 @@ def main():
                 else:
                     print(f"  ❌ Fixup rename failed for {fb['session_id']}")
     
-    # Save results
-    results_file = os.path.join(OUTPUT_DIR, f"rename_results_{folder_id[:8]}_{timestamp}.json")
-    with open(results_file, 'w', encoding='utf-8') as f:
-        json.dump({
-            "folder_id": folder_id,
-            "timestamp": timestamp,
-            "sessions": results
-        }, f, indent=2, ensure_ascii=False)
-    print(f"\n📊 Results saved: {results_file}")
-    
-    # Update Moodle metadata
-    moodle_file = os.path.join(OUTPUT_DIR, "panopto_session_metadata.json")
-    existing_moodle = {}
-    if os.path.exists(moodle_file):
-        with open(moodle_file, 'r', encoding='utf-8') as f:
-            existing_moodle = json.load(f)
-    existing_moodle.update(moodle_data)
-    with open(moodle_file, 'w', encoding='utf-8') as f:
-        json.dump(existing_moodle, f, indent=2, ensure_ascii=False)
-    print(f"📋 Moodle metadata updated: {moodle_file}")
+    # Save results and update Moodle metadata (DEBUG only - not needed for normal runs)
+    if DEBUG_OUTPUT:
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+        results_file = os.path.join(OUTPUT_DIR, f"rename_results_{folder_id[:8]}_{timestamp}.json")
+        with open(results_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                "folder_id": folder_id,
+                "timestamp": timestamp,
+                "sessions": results
+            }, f, indent=2, ensure_ascii=False)
+        print(f"\n📊 Results saved: {results_file}")
+
+        moodle_file = os.path.join(OUTPUT_DIR, "panopto_session_metadata.json")
+        existing_moodle = {}
+        if os.path.exists(moodle_file):
+            with open(moodle_file, 'r', encoding='utf-8') as f:
+                existing_moodle = json.load(f)
+        existing_moodle.update(moodle_data)
+        with open(moodle_file, 'w', encoding='utf-8') as f:
+            json.dump(existing_moodle, f, indent=2, ensure_ascii=False)
+        print(f"📋 Moodle metadata updated: {moodle_file}")
     
     # Summary
     success_count = sum(1 for r in results if r.get("success"))
