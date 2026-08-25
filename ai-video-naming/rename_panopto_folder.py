@@ -45,20 +45,20 @@ SCHEDULE_FILE = os.getenv("SCHEDULE_FILE", "Eve-Sat 25-26  Weekly Schedule.xlsx"
 DEBUG_OUTPUT = os.getenv("LOGGING_LEVEL", "INFO").upper() == "DEBUG"
 
 def load_week_schedule():
-    """Load week schedule from Excel file"""
+    """Load week schedule from Excel file (columns: Week, Start Date, End Date, Note)"""
     if not os.path.exists(SCHEDULE_FILE):
         print(f"⚠️ Schedule file not found: {SCHEDULE_FILE}")
         return []
-    
-    df = pd.read_excel(SCHEDULE_FILE, header=None)
+
+    df = pd.read_excel(SCHEDULE_FILE)
     weeks = []
-    
+
     for _, row in df.iterrows():
-        week_num = row[0]
-        start_date = row[2]
-        end_date = row[4]
-        
-        # Only process rows with numeric week numbers
+        week_num = row['Week']
+        start_date = row['Start Date']
+        end_date = row['End Date']
+
+        # Only process rows with numeric week numbers (skips "No Classes" rows)
         if isinstance(week_num, (int, float)) and not pd.isna(week_num):
             try:
                 week_num = int(week_num)
@@ -70,7 +70,7 @@ def load_week_schedule():
                     })
             except:
                 pass
-    
+
     return weeks
 
 def get_week_number(recording_date, weeks):

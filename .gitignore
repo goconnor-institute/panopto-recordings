@@ -1,11 +1,12 @@
 # Secrets / credentials
 .env
 auth/panopto_tokens.json
+archive/
 
 # Institution-specific data (not needed to use the scripts, contains internal IDs)
 pt_class_groups.xlsx
 pt_class_groups_backup_*.xlsx
-Eve-Sat*Weekly Schedule.xlsx
+Weekly Schedule.xlsx
 
 # Real lecture transcripts / recordings output (not code, not meant for the public repo)
 transcripts/
