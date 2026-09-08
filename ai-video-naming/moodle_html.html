@@ -127,17 +127,22 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!hiddenDiv || !showAllDiv) return;
     
     hiddenDivRef = hiddenDiv;
-    
+
+    // If a live session is showing, it already occupies one of the 4
+    // collapsed-view slots, so only 3 recordings should be shown alongside it.
+    var hasLiveSession = !!document.querySelector('.block_panopto .panopto-live-session');
+
     // Check if already expanded (hidden div is visible)
     var isExpanded = hiddenDiv.style.display === 'block';
-    
-    if (isExpanded) {
-      // If expanded and we have a moved item, put it back
+
+    if (isExpanded || hasLiveSession) {
+      // If expanded (or a live session is present) and we have a moved item, put it back
       if (movedItem && movedItem.parentNode !== hiddenDiv) {
         hiddenDiv.insertBefore(movedItem, hiddenDiv.firstChild);
+        movedItem = null;
       }
     } else {
-      // If collapsed, move the first hidden item out
+      // If collapsed with no live session, move the first hidden item out
       if (!movedItem || movedItem.parentNode === hiddenDiv) {
         var firstHidden = hiddenDiv.querySelector('.listItem, .listItemAlt');
         if (firstHidden) {
