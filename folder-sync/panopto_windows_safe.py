@@ -4,6 +4,7 @@ Panopto Folder Synchronization Script with Automatic Token Refresh
 Uses OAuth2 with refresh tokens for automated, unattended operation
 """
 
+import argparse
 import requests
 import pandas as pd
 import logging
@@ -478,12 +479,20 @@ def compare_folder_sessions(ioe_sessions, bc_sessions, class_group_id):
     
     return comparison_result
 
-def copy_session_to_folder(panopto_auth, session_id, session_name, target_folder_id, copy_type="Full"):
+def copy_session_to_folder(panopto_auth, session_id, session_name, target_folder_id, copy_type="Full", dry_run=False):
     """Copy a session to a target folder using Panopto API"""
     logger = logging.getLogger(__name__)
-    
+
+    if dry_run:
+        logger.info(f"          [DRY RUN] Would copy session '{session_name}' to folder {target_folder_id}")
+        return {
+            'success': True,
+            'new_session_id': 'DRY-RUN',
+            'message': 'Dry run - no copy performed'
+        }
+
     logger.info(f"          Copying session '{session_name}' to folder {target_folder_id}")
-    
+
     url = f"https://{PANOPTO_SERVER}/Panopto/api/v1/sessions/{session_id}/sessioncopy"
     headers = {
         "Authorization": f"Bearer {panopto_auth}",
@@ -541,13 +550,21 @@ def copy_session_to_folder(panopto_auth, session_id, session_name, target_folder
             'error': str(e)
         }
 
-def rename_session(panopto_auth, session_id, new_name, old_name=None):
+def rename_session(panopto_auth, session_id, new_name, old_name=None, dry_run=False):
     """Rename a session in Panopto using the API"""
     logger = logging.getLogger(__name__)
-    
+
     display_old = f"'{old_name}'" if old_name else f"session {session_id}"
+
+    if dry_run:
+        logger.info(f"          [DRY RUN] Would rename {display_old} to '{new_name}'")
+        return {
+            'success': True,
+            'message': 'Dry run - no rename performed'
+        }
+
     logger.info(f"          Renaming {display_old} to '{new_name}'")
-    
+
     url = f"https://{PANOPTO_SERVER}/Panopto/api/v1/sessions/{session_id}"
     headers = {
         "Authorization": f"Bearer {panopto_auth}",
@@ -600,30 +617,31 @@ def rename_session(panopto_auth, session_id, new_name, old_name=None):
             'error': str(e)
         }
 
-def sync_renamed_sessions(panopto_auth, comparison_result, class_group_id):
+def sync_renamed_sessions(panopto_auth, comparison_result, class_group_id, dry_run=False):
     """Sync renamed sessions by updating the name in the destination (BC) folder"""
     logger = logging.getLogger(__name__)
-    
+
     renamed_sessions = comparison_result.get('renamed_sessions', [])
-    
+
     if not renamed_sessions:
         return {'success': True, 'renamed_count': 0, 'results': []}
-    
+
     logger.info(f"  Syncing {len(renamed_sessions)} renamed session(s) for Class Group {class_group_id}")
-    
+
     rename_results = []
     successful_renames = 0
-    
+
     for renamed in renamed_sessions:
         logger.info(f"      Updating: '{renamed['bc_name']}' -> '{renamed['ioe_name']}'")
-        
+
         rename_result = rename_session(
             panopto_auth=panopto_auth,
             session_id=renamed['bc_session_id'],
             new_name=renamed['ioe_name'],
-            old_name=renamed['bc_name']
+            old_name=renamed['bc_name'],
+            dry_run=dry_run
         )
-        
+
         rename_results.append({
             'old_name': renamed['bc_name'],
             'new_name': renamed['ioe_name'],
@@ -631,12 +649,13 @@ def sync_renamed_sessions(panopto_auth, comparison_result, class_group_id):
             'unique_key': renamed['unique_key'],
             'result': rename_result
         })
-        
+
         if rename_result['success']:
             successful_renames += 1
-        
-        # Small delay between renames
-        time.sleep(1)
+
+        # Small delay between renames (skip in dry run - no API calls made)
+        if not dry_run:
+            time.sleep(1)
     
     logger.info(f"  Renamed {successful_renames}/{len(renamed_sessions)} sessions")
     
@@ -647,7 +666,7 @@ def sync_renamed_sessions(panopto_auth, comparison_result, class_group_id):
         'results': rename_results
     }
 
-def sync_sessions_for_class_group(panopto_auth, class_group_data, ioe_sessions, bc_sessions, comparison_result):
+def sync_sessions_for_class_group(panopto_auth, class_group_data, ioe_sessions, bc_sessions, comparison_result, dry_run=False):
     """Synchronize sessions from IOE to BC folder for a specific class group"""
     logger = logging.getLogger(__name__)
     
@@ -681,7 +700,8 @@ def sync_sessions_for_class_group(panopto_auth, class_group_data, ioe_sessions, 
             session_id=session['id'],
             session_name=session['name'],
             target_folder_id=bc_folder_id,
-            copy_type="Reference"  # Create reference copy
+            copy_type="Reference",  # Create reference copy
+            dry_run=dry_run
         )
         
         copy_results.append({
@@ -700,8 +720,9 @@ def sync_sessions_for_class_group(panopto_auth, class_group_data, ioe_sessions, 
             #logger.error(f"         Failed to copy session '{session['display_name']}': {copy_result['error']}")
             pass # this was giving a duplicate log message
 
-        # Add a small delay between copies to avoid overwhelming the API
-        time.sleep(2)
+        # Add a small delay between copies to avoid overwhelming the API (skip in dry run - no API calls made)
+        if not dry_run:
+            time.sleep(2)
     
     logger.info(f"  Synchronization completed for Class Group {class_group_id}")
     logger.info(f"  Successfully copied: {successful_copies}/{len(sessions_to_copy)} sessions")
@@ -715,7 +736,7 @@ def sync_sessions_for_class_group(panopto_auth, class_group_data, ioe_sessions, 
         'results': copy_results
     }
 
-def process_all_class_groups(panopto_auth, class_groups):
+def process_all_class_groups(panopto_auth, class_groups, dry_run=False):
     """Process all class groups: compare, synchronize new sessions, and update renamed sessions"""
     logger = logging.getLogger(__name__)
     
@@ -784,7 +805,8 @@ def process_all_class_groups(panopto_auth, class_groups):
                 rename_result = sync_renamed_sessions(
                     panopto_auth=panopto_auth,
                     comparison_result=comparison_result,
-                    class_group_id=class_group_id
+                    class_group_id=class_group_id,
+                    dry_run=dry_run
                 )
                 rename_result['class_group_id'] = class_group_id
                 rename_result['ioe_folder_name'] = comparison_result.get('ioe_folder_name')
@@ -800,13 +822,14 @@ def process_all_class_groups(panopto_auth, class_groups):
                     class_group_data=class_group,
                     ioe_sessions=ioe_sessions,
                     bc_sessions=bc_sessions,
-                    comparison_result=comparison_result
+                    comparison_result=comparison_result,
+                    dry_run=dry_run
                 )
                 sync_results.append(sync_result)
                 sync_performed = True
-            
-            # Re-check folders after any synchronization
-            if sync_performed:
+
+            # Re-check folders after any synchronization (skip in dry run - nothing actually changed)
+            if sync_performed and not dry_run:
                 logger.info(f"Re-checking folders after synchronization...")
                 bc_sessions_updated = get_panopto_folder_recordings(panopto_auth, bc_folder_id, "BC")
                 comparison_result_updated = compare_folder_sessions(ioe_sessions, bc_sessions_updated, class_group_id)
@@ -1142,33 +1165,44 @@ def send_email_report(total_groups, sync_results, total_sessions_copied, groups_
 
 def main():
     """Main function to run the folder synchronization check"""
+    parser = argparse.ArgumentParser(description="Panopto folder synchronization")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Compare folders and report what would be synced, without copying/renaming sessions or sending email")
+    args = parser.parse_args()
+    dry_run = args.dry_run
+
     logger = setup_logging()
-    
+
     logger.info("Starting Panopto Folder Synchronization Check")
+    if dry_run:
+        logger.info("DRY RUN MODE - no sessions will be copied/renamed and no email will be sent")
     logger.info("=" * 60)
-    
+
     # Get authentication token (automatic refresh token handling)
     panopto_auth = get_panopto_auth()
     if not panopto_auth:
         logger.error("Failed to authenticate with Panopto")
-        send_error_email("Failed to authenticate with Panopto", "Authentication")
+        if not dry_run:
+            send_error_email("Failed to authenticate with Panopto", "Authentication")
         return
-    
+
     # Load class groups
     try:
         class_groups = getScheduleOfClasses()
         logger.info(f"Loaded {len(class_groups)} class groups from Excel file")
     except Exception as e:
         logger.error(f"Failed to load class groups: {e}")
-        send_error_email(str(e), "Loading Class Groups")
+        if not dry_run:
+            send_error_email(str(e), "Loading Class Groups")
         return
-    
+
     # Main loop to process each class group
-    all_results, sync_results, rename_results = process_all_class_groups(panopto_auth, class_groups)
+    all_results, sync_results, rename_results = process_all_class_groups(panopto_auth, class_groups, dry_run=dry_run)
 
     if not all_results:
         logger.error("No results to process - exiting")
-        send_error_email("No results were returned from processing class groups", "Processing Class Groups")
+        if not dry_run:
+            send_error_email("No results were returned from processing class groups", "Processing Class Groups")
         return
     
     # Generate summary report
@@ -1193,23 +1227,27 @@ def main():
             if scheduled_run_log is None or os.path.getmtime(file_path) > os.path.getmtime(scheduled_run_log):
                 scheduled_run_log = file_path
 
-    # Send email report
-    email_sent = send_email_report(
-        total_groups=total_groups,
-        sync_results=sync_results,
-        total_sessions_copied=total_sessions_copied,
-        groups_synchronized=groups_synchronized,
-        groups_with_differences=groups_with_differences,
-        differences_summary=differences_summary,
-        results_file_path=results_file,
-        scheduled_run_log=scheduled_run_log,
-        total_sessions_renamed=total_sessions_renamed,
-        rename_results=rename_results
-    )
-    
-    if email_sent:
-        logger.info("Email report sent successfully!")
-    
+    if dry_run:
+        logger.info("DRY RUN - skipping email report")
+        logger.info(f"Detailed results file: {results_file}")
+    else:
+        # Send email report
+        email_sent = send_email_report(
+            total_groups=total_groups,
+            sync_results=sync_results,
+            total_sessions_copied=total_sessions_copied,
+            groups_synchronized=groups_synchronized,
+            groups_with_differences=groups_with_differences,
+            differences_summary=differences_summary,
+            results_file_path=results_file,
+            scheduled_run_log=scheduled_run_log,
+            total_sessions_renamed=total_sessions_renamed,
+            rename_results=rename_results
+        )
+
+        if email_sent:
+            logger.info("Email report sent successfully!")
+
     logger.info("Synchronization check completed successfully!")
 
 if __name__ == "__main__":
