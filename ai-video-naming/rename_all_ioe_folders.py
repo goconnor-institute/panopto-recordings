@@ -26,6 +26,10 @@ and "Max Days" columns.  The CLI flags override these for all rows.
 Rows with "Skip Rename" set to 1 still get date/week-number formatting applied,
 but skip caption download and AI topic generation (new name uses the original
 session name instead of an AI-generated topic).
+
+A class group can have an IOE folder, a BC folder, or both (same Panopto
+instance). IOE is always renamed when present; rows with only a BC folder are
+renamed directly against that BC folder instead of being skipped.
 """
 
 import subprocess
@@ -100,19 +104,61 @@ def send_batch_email_report(summary, log_file, summary_file):
         return False
 
 
+def _has_value(val):
+    return pd.notna(val) and str(val).strip() != "" and str(val).strip().lower() != "nan"
+
+
+def pick_folder(row):
+    """Pick which folder to rename for a row: IOE Folder ID if present, otherwise
+    BC Folder ID (a class group can have an IOE folder, a BC folder, or both - they're
+    on the same Panopto instance). IOE is preferred when both exist; the folder-sync
+    script propagates renamed IOE session names to the linked BC session separately,
+    so only IOE-only-or-BC-only rows need direct renaming here.
+
+    Returns (folder_id, source, folder_link) where source is "IOE" or "BC",
+    or (None, None, None) if neither folder is set.
+    """
+    ioe_id = row.get("IOE Folder ID")
+    if _has_value(ioe_id):
+        folder_id = str(ioe_id).strip()
+        link = str(row.get("IOE Folder Link", "")).strip()
+        if not _has_value(link):
+            link = f"https://{PANOPTO_SERVER}/Panopto/Pages/Sessions/List.aspx?folderID={folder_id}"
+        return folder_id, "IOE", link
+
+    bc_id = row.get("BC Folder ID")
+    if _has_value(bc_id):
+        folder_id = str(bc_id).strip()
+        link = str(row.get("BC Folder Link", "")).strip()
+        if not _has_value(link):
+            link = f"https://{PANOPTO_SERVER}/Panopto/Pages/Sessions/List.aspx?folderID={folder_id}"
+        return folder_id, "BC", link
+
+    return None, None, None
+
+
 def load_class_groups(filepath):
-    """Load the class groups spreadsheet and return rows with valid IOE Folder IDs.
+    """Load the class groups spreadsheet and return rows with a valid IOE or BC Folder ID.
+
+    A class group can have an IOE folder, a BC folder, or both. Rows with only a
+    BC folder are kept and renamed directly against that BC folder (see pick_folder).
 
     Rows marked "Skip Rename" (1) are kept - they still get date/week-number
     formatting applied, just without caption download or AI topic generation.
     """
     df = pd.read_excel(filepath)
-    # Keep only rows that have a non-empty IOE Folder ID
-    df = df[df["IOE Folder ID"].notna() & (df["IOE Folder ID"].astype(str).str.strip() != "")]
+    has_ioe = df["IOE Folder ID"].notna() & (df["IOE Folder ID"].astype(str).str.strip() != "")
+    has_bc = df["BC Folder ID"].notna() & (df["BC Folder ID"].astype(str).str.strip() != "")
+    bc_only = int((~has_ioe & has_bc).sum())
+    df = df[has_ioe | has_bc].reset_index(drop=True)
+
+    if bc_only:
+        print(f"🔗 {bc_only} folder(s) have only a BC folder - will rename directly against BC")
+
     skip_ai = int((df.get("Skip Rename", 0) == 1).sum())
     if skip_ai:
         print(f"🚫 {skip_ai} folder(s) marked 'Skip Rename' - will apply date/week formatting only (no AI topic)")
-    return df.reset_index(drop=True)
+    return df
 
 
 def run_rename(folder_id, shortname, extra_args):
@@ -217,16 +263,17 @@ def main():
 
     # ── Dry-run mode ──────────────────────────────────────────────────
     if args.dry_run:
-        print(f"\n{'#':>4}  {'Class Group':>12}  {'IOE Folder ID':<38}  {'Wk#':>3}  {'SDT':>3}  {'MDy':>3}  {'AI':>3}  Shortname")
-        print("-" * 122)
+        print(f"\n{'#':>4}  {'Class Group':>12}  {'Src':>3}  {'Folder ID':<38}  {'Wk#':>3}  {'SDT':>3}  {'MDy':>3}  {'AI':>3}  Shortname")
+        print("-" * 128)
         for idx, row in df.iloc[start_idx:end_idx].iterrows():
             num = start_idx + idx + 1
             use_wk = "YES" if args.use_week_nums or row.get("Use Week Num", 0) == 1 else "no"
             use_sdt = "YES" if args.same_day_same_topic or row.get("Same Day Same Topic", 0) == 1 else "no"
             max_d = args.max_days or (int(row["Max Days"]) if pd.notna(row.get("Max Days", None)) and row.get("Max Days", 0) else "")
             skip_ai = "no" if row.get("Skip Rename", 0) == 1 else "YES"
-            print(f"{num:>4}  {str(row.get('Class Group ID', '')):>12}  "
-                  f"{row['IOE Folder ID']:<38}  {use_wk:>3}  {use_sdt:>3}  {str(max_d):>3}  {skip_ai:>3}  {row.get('Shortname', '')}")
+            folder_id, folder_source, _ = pick_folder(row)
+            print(f"{num:>4}  {str(row.get('Class Group ID', '')):>12}  {folder_source or '':>3}  "
+                  f"{folder_id or '':<38}  {use_wk:>3}  {use_sdt:>3}  {str(max_d):>3}  {skip_ai:>3}  {row.get('Shortname', '')}")
         print(f"\n📊 {end_idx - start_idx} folders would be processed.")
         return
 
@@ -255,13 +302,22 @@ def main():
     count = len(rows_to_process)
 
     for i, (_, row) in enumerate(rows_to_process.iterrows()):
-        folder_id = str(row["IOE Folder ID"]).strip()
+        folder_id, folder_source, folder_link = pick_folder(row)
         shortname = str(row.get("Shortname", "Unknown"))
         class_group = str(row.get("Class Group ID", ""))
-        folder_link = str(row.get("IOE Folder Link", "")).strip()
-        if not folder_link or folder_link.lower() == "nan":
-            folder_link = f"https://{PANOPTO_SERVER}/Panopto/Pages/Sessions/List.aspx?folderID={folder_id}"
         num = start_idx + i + 1
+
+        if not folder_id:
+            print(f"\n{'─' * 70}")
+            print(f"[{i + 1}/{count}] ({num}/{total}) {shortname}")
+            print("  ❌ No IOE or BC folder ID - skipping")
+            summary["processed"] += 1
+            summary["failed"] += 1
+            summary["details"].append({
+                "row": num, "class_group": class_group, "shortname": shortname,
+                "folder_id": None, "folder_link": None, "status": "❌ failed",
+            })
+            continue
 
         # Decide week numbers: CLI override OR per-row column
         use_week = args.use_week_nums or row.get("Use Week Num", 0) == 1
@@ -281,7 +337,7 @@ def main():
 
         print(f"\n{'─' * 70}")
         print(f"[{i + 1}/{count}] ({num}/{total}) {shortname}")
-        print(f"  📂 Folder ID: {folder_id}")
+        print(f"  📂 Folder ID: {folder_id} ({folder_source})")
         print(f"  📆 Week numbers: {'YES' if use_week else 'no'}")
         print(f"  🔁 Same-day-same-topic: {'YES' if use_sdt else 'no'}")
         if max_days:
@@ -310,6 +366,7 @@ def main():
             "class_group": class_group,
             "shortname": shortname,
             "folder_id": folder_id,
+            "folder_source": folder_source,
             "folder_link": folder_link,
             "status": status,
         })
