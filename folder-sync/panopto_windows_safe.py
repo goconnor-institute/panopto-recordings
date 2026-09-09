@@ -304,22 +304,34 @@ def get_panopto_auth():
     logger.info("🔑 Performing initial authentication (browser required)")
     return oauth2_initial_auth()
 
+def derive_class_group_id(shortname):
+    """Derive the Class Group ID straight from the Shortname text.
+
+    Mirrors the workbook's own "Class Group ID" formula
+    (=IFERROR(RIGHT(TRIM(TEXTBEFORE(E2, "-")), 6), "")) so we don't depend
+    on Excel's cached formula result, which openpyxl silently drops
+    whenever another script re-saves the workbook - leaving every row's
+    "Class Group ID" blank until the file is next opened and saved in Excel.
+    """
+    if pd.isna(shortname):
+        return None
+    before_dash = str(shortname).split('-', 1)[0].strip()
+    tail = before_dash[-6:] if before_dash else ''
+    return tail if tail.isdigit() else None
+
 def getScheduleOfClasses(ctx=None):
     """Load class groups from Excel file"""
     logger = logging.getLogger(__name__)
     class_groups = pd.read_excel("pt_class_groups.xlsx", sheet_name="Sheet2")
-    
+
     class_groups_dict_li = []
     for index, row in class_groups.iterrows():
-        raw_id = row['Class Group ID']
-        if pd.isna(raw_id):
-            class_group_id = raw_id
-        else:
-            try:
-                class_group_id = str(int(raw_id))
-            except (ValueError, TypeError):
-                logger.warning(f"Row {index}: Non-numeric Class Group ID '{raw_id}' - skipping row")
+        shortname = row['Shortname']
+        class_group_id = derive_class_group_id(shortname)
+        if class_group_id is None:
+            if pd.isna(shortname):
                 continue
+            class_group_id = str(shortname).strip()
         ioe_folder_id = row['IOE Folder ID']
         bc_folder_id = row['BC Folder ID']
 
