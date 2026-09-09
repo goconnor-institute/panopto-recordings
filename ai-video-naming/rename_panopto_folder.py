@@ -413,6 +413,8 @@ def main():
                         help='Reset day counter after this many days (for repeated course deliveries)')
     parser.add_argument('--folder-url', '-u', type=str,
                         help='Panopto folder URL or ID')
+    parser.add_argument('--no-ai-topic', action='store_true',
+                        help='Skip caption download and AI topic generation; still applies date/week-number formatting using the original session name')
     parser.add_argument('folder', nargs='?', help='Panopto folder URL or ID (optional, will prompt if not provided)')
     args = parser.parse_args()
     
@@ -420,7 +422,8 @@ def main():
     use_week_nums = args.use_week_nums
     non_interactive = args.non_interactive
     same_day_same_topic = args.same_day_same_topic
-    
+    no_ai_topic = args.no_ai_topic
+
     print("=" * 70)
     print("🎬 PANOPTO SESSION RENAMER")
     if force_rename:
@@ -432,6 +435,8 @@ def main():
     if same_day_same_topic:
         max_days_msg = f" (resets every {args.max_days} days)" if args.max_days else ""
         print(f"🔁 SAME-DAY MODE: Reusing AI topic for recordings on the same date{max_days_msg}")
+    if no_ai_topic:
+        print("🚫 NO-AI-TOPIC MODE: Skipping captions/AI - date/week formatting only")
     if non_interactive:
         print("🤖 NON-INTERACTIVE: Skipping confirmation prompts")
     print("=" * 70)
@@ -608,7 +613,9 @@ def main():
         # Check if we already have an AI topic for this day number, date, or week
         ai_topic = None
         day_num = day_numbers.get(date_key) if same_day_same_topic and date_key else None
-        if same_day_same_topic and day_num and day_num in day_topics:
+        if no_ai_topic:
+            pass  # Skip captions/AI entirely - falls through to base_name below
+        elif same_day_same_topic and day_num and day_num in day_topics:
             ai_topic = day_topics[day_num]
             print(f"  ♻️ Reusing AI topic from Day {day_num}: {ai_topic}")
         elif same_day_same_topic and date_key and date_key in date_topics:
@@ -673,8 +680,8 @@ def main():
                 "success": True
             })
             
-            # Track fallback sessions for same-day fixup
-            if same_day_same_topic and used_fallback and date_key:
+            # Track fallback sessions for same-day fixup (not for deliberate no-AI-topic runs)
+            if same_day_same_topic and used_fallback and date_key and not no_ai_topic:
                 fallback_sessions.append({
                     "session_id": session_id,
                     "date_key": date_key,
