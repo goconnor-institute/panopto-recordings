@@ -33,15 +33,71 @@ import sys
 import os
 import json
 import argparse
+import smtplib
 from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 import pandas as pd
 from dotenv import load_dotenv
+
+from rename_email_template_builder import build_html_report, build_plain_text_report
 
 load_dotenv(override=True)
 
 CLASS_GROUPS_FILE = os.getenv("CLASS_GROUPS_FILE", "pt_class_groups.xlsx")
 LOG_DIR = "scheduled_logs"
+
+PANOPTO_SERVER = os.getenv("PANOPTO_SERVER", "")
+EMAIL_SMTP_SERVER = "smtp.gmail.com"
+EMAIL_SMTP_PORT = 587
+EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
+EMAIL_TO = [addr.strip() for addr in os.getenv("EMAIL_TO", "").split(",") if addr.strip()]
+
+
+def send_batch_email_report(summary, log_file, summary_file):
+    """Send an HTML email summarising the batch rename run, styled like the folder-sync report."""
+    if not EMAIL_FROM or not EMAIL_PASSWORD or not EMAIL_TO:
+        print("\n⚠️  Email not configured (EMAIL_FROM/EMAIL_PASSWORD/EMAIL_TO) - skipping email report")
+        return False
+
+    status_emoji = "✅" if summary["failed"] == 0 else "⚠️"
+    subject = (f"{status_emoji} Panopto Batch Rename Report - "
+               f"{datetime.now().strftime('%b %d, %Y at %H:%M')}")
+
+    html_body = build_html_report(summary, PANOPTO_SERVER, summary_file, log_file)
+    plain_text = build_plain_text_report(summary, PANOPTO_SERVER)
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['From'] = EMAIL_FROM
+        msg['To'] = ", ".join(EMAIL_TO)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(plain_text, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+
+        for path in (log_file,):
+            if path and os.path.exists(path):
+                with open(path, "rb") as attachment:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(attachment.read())
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(path)}')
+                    msg.attach(part)
+
+        server = smtplib.SMTP(EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT)
+        server.starttls()
+        server.login(EMAIL_FROM, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_FROM, EMAIL_TO, msg.as_string())
+        server.quit()
+        print(f"\n📧 Email report sent to {', '.join(EMAIL_TO)}")
+        return True
+    except Exception as e:
+        print(f"\n⚠️  Failed to send email report: {e}")
+        return False
 
 
 def load_class_groups(filepath):
@@ -114,6 +170,8 @@ def main():
                         help="End at this row number inclusive (1-based, default: last row)")
     parser.add_argument("--only", type=str, default=None,
                         help="Process only the folder matching this Class Group ID")
+    parser.add_argument("--no-email", action="store_true",
+                        help="Skip sending the email report at the end")
     args = parser.parse_args()
 
     # ── Load spreadsheet ──────────────────────────────────────────────
@@ -200,6 +258,9 @@ def main():
         folder_id = str(row["IOE Folder ID"]).strip()
         shortname = str(row.get("Shortname", "Unknown"))
         class_group = str(row.get("Class Group ID", ""))
+        folder_link = str(row.get("IOE Folder Link", "")).strip()
+        if not folder_link or folder_link.lower() == "nan":
+            folder_link = f"https://{PANOPTO_SERVER}/Panopto/Pages/Sessions/List.aspx?folderID={folder_id}"
         num = start_idx + i + 1
 
         # Decide week numbers: CLI override OR per-row column
@@ -249,6 +310,7 @@ def main():
             "class_group": class_group,
             "shortname": shortname,
             "folder_id": folder_id,
+            "folder_link": folder_link,
             "status": status,
         })
 
@@ -277,6 +339,10 @@ def main():
     with open(summary_file, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
     print(f"📋 Summary saved: {summary_file}")
+
+    # Email report
+    if not args.no_email:
+        send_batch_email_report(summary, log_file, summary_file)
 
     # Exit with error code if any failed
     if summary["failed"] > 0:
