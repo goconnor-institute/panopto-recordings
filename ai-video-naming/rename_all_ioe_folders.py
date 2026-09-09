@@ -22,6 +22,10 @@ overrides this and forces week numbers for every row.
 
 Same-day-same-topic and max-days are controlled per-row via "Same Day Same Topic"
 and "Max Days" columns.  The CLI flags override these for all rows.
+
+Rows with "Skip Rename" set to 1 still get date/week-number formatting applied,
+but skip caption download and AI topic generation (new name uses the original
+session name instead of an AI-generated topic).
 """
 
 import subprocess
@@ -41,10 +45,17 @@ LOG_DIR = "scheduled_logs"
 
 
 def load_class_groups(filepath):
-    """Load the class groups spreadsheet and return rows with valid IOE Folder IDs."""
+    """Load the class groups spreadsheet and return rows with valid IOE Folder IDs.
+
+    Rows marked "Skip Rename" (1) are kept - they still get date/week-number
+    formatting applied, just without caption download or AI topic generation.
+    """
     df = pd.read_excel(filepath)
     # Keep only rows that have a non-empty IOE Folder ID
     df = df[df["IOE Folder ID"].notna() & (df["IOE Folder ID"].astype(str).str.strip() != "")]
+    skip_ai = int((df.get("Skip Rename", 0) == 1).sum())
+    if skip_ai:
+        print(f"🚫 {skip_ai} folder(s) marked 'Skip Rename' - will apply date/week formatting only (no AI topic)")
     return df.reset_index(drop=True)
 
 
@@ -148,15 +159,16 @@ def main():
 
     # ── Dry-run mode ──────────────────────────────────────────────────
     if args.dry_run:
-        print(f"\n{'#':>4}  {'Class Group':>12}  {'IOE Folder ID':<38}  {'Wk#':>3}  {'SDT':>3}  {'MDy':>3}  Shortname")
-        print("-" * 116)
+        print(f"\n{'#':>4}  {'Class Group':>12}  {'IOE Folder ID':<38}  {'Wk#':>3}  {'SDT':>3}  {'MDy':>3}  {'AI':>3}  Shortname")
+        print("-" * 122)
         for idx, row in df.iloc[start_idx:end_idx].iterrows():
             num = start_idx + idx + 1
             use_wk = "YES" if args.use_week_nums or row.get("Use Week Num", 0) == 1 else "no"
             use_sdt = "YES" if args.same_day_same_topic or row.get("Same Day Same Topic", 0) == 1 else "no"
             max_d = args.max_days or (int(row["Max Days"]) if pd.notna(row.get("Max Days", None)) and row.get("Max Days", 0) else "")
+            skip_ai = "no" if row.get("Skip Rename", 0) == 1 else "YES"
             print(f"{num:>4}  {str(row.get('Class Group ID', '')):>12}  "
-                  f"{row['IOE Folder ID']:<38}  {use_wk:>3}  {use_sdt:>3}  {str(max_d):>3}  {row.get('Shortname', '')}")
+                  f"{row['IOE Folder ID']:<38}  {use_wk:>3}  {use_sdt:>3}  {str(max_d):>3}  {skip_ai:>3}  {row.get('Shortname', '')}")
         print(f"\n📊 {end_idx - start_idx} folders would be processed.")
         return
 
@@ -194,7 +206,8 @@ def main():
         use_week = args.use_week_nums or row.get("Use Week Num", 0) == 1
         use_sdt = args.same_day_same_topic or row.get("Same Day Same Topic", 0) == 1
         max_days = args.max_days or (int(row["Max Days"]) if pd.notna(row.get("Max Days", None)) and row.get("Max Days", 0) else None)
-        
+        skip_ai_topic = row.get("Skip Rename", 0) == 1
+
         row_args = list(extra_args)
         if use_week:
             row_args.append("--use-week-nums")
@@ -202,6 +215,8 @@ def main():
             row_args.append("--same-day-same-topic")
         if max_days:
             row_args.extend(["--max-days", str(max_days)])
+        if skip_ai_topic:
+            row_args.append("--no-ai-topic")
 
         print(f"\n{'─' * 70}")
         print(f"[{i + 1}/{count}] ({num}/{total}) {shortname}")
@@ -210,6 +225,8 @@ def main():
         print(f"  🔁 Same-day-same-topic: {'YES' if use_sdt else 'no'}")
         if max_days:
             print(f"  📆 Max days: {max_days}")
+        if skip_ai_topic:
+            print("  🚫 Skip Rename: date/week formatting only, no AI topic")
 
         success, output = run_rename(folder_id, shortname, row_args)
 
